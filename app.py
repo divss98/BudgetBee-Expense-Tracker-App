@@ -17,11 +17,15 @@ from utils.data_manager import (
     clear_expenses,
     data_to_csv,
     get_expenses,
+    get_default_currency,
     get_monthly_budget,
     import_expenses,
     save_monthly_budget,
+    save_default_currency,
     save_expenses,
 )
+from utils.currency import CURRENCIES as SUPPORTED_CURRENCIES
+from utils.currency import CurrencyConversionError, convert_amount, format_currency, number_format
 from utils.expense_ai import generate_spending_insight, parse_expenses
 
 
@@ -69,8 +73,8 @@ def apply_styles() -> None:
     )
 
 
-def money(value: float) -> str:
-    return f"${value:,.2f}"
+def money(value: float, currency: str | None = None) -> str:
+    return format_currency(value, currency or get_default_currency())
 
 
 def get_groq_api_key() -> str | None:
@@ -126,35 +130,44 @@ def show_home(expenses: pd.DataFrame, all_expenses: pd.DataFrame, date_label: st
     count = len(expenses)
     top_category = expenses.groupby("category")["amount"].sum().idxmax() if not expenses.empty else "—"
     monthly_budget = get_monthly_budget()
+    default_currency = get_default_currency()
 
     left, title, _ = st.columns([0.45, 6, 2])
     with left:
         st.markdown('<div class="bee-logo">🐝</div>', unsafe_allow_html=True)
     with title:
         st.markdown('<div class="eyebrow">Personal finance, made lighter</div><h1 class="page-title">Welcome to BudgetBee</h1><p class="muted">Your spending overview for ' + date_label + '.</p>', unsafe_allow_html=True)
-    if notice := st.session_state.pop("expense_notice", None):
-        st.toast(notice, icon="✅")
-
     stats, costs = st.columns([3.2, 1], gap="large")
     with stats:
         c1, c2, c3 = st.columns(3)
-        c1.metric("Total spent", money(total))
+        c1.metric("Total spent", money(total, default_currency))
         c2.metric("Transactions", count)
         c3.metric("Top category", top_category)
         budget_remaining = monthly_budget - total
-        st.progress(min(total / monthly_budget, 1.0) if monthly_budget else 0.0, text=f"Budget progress: {money(total)} of {money(monthly_budget)} · {money(abs(budget_remaining))} {'remaining' if budget_remaining >= 0 else 'over budget'}")
+        st.progress(min(total / monthly_budget, 1.0) if monthly_budget else 0.0, text=f"Budget progress: {money(total, default_currency)} of {money(monthly_budget, default_currency)} · {money(abs(budget_remaining), default_currency)} {'remaining' if budget_remaining >= 0 else 'over budget'}")
         if not expenses.empty:
             category_totals = expenses.groupby("category")["amount"].sum().sort_values(ascending=False)
             heavy_category, heavy_total = category_totals.index[0], category_totals.iloc[0]
-            if heavy_total > 300:
-                st.markdown(f"<div class='nudge'>⚠ Spending nudge: {heavy_category} is at {money(heavy_total)} in this period.</div>", unsafe_allow_html=True)
+            try:
+                nudge_limit, _ = convert_amount(300, "USD", default_currency)
+            except CurrencyConversionError:
+                nudge_limit = 300
+            if heavy_total > nudge_limit:
+                st.markdown(f"<div class='nudge'>⚠ Spending nudge: {heavy_category} is at {money(heavy_total, default_currency)} in this period.</div>", unsafe_allow_html=True)
     with costs:
         st.markdown("#### Fixed costs")
         st.caption("Monthly essentials")
+        fixed_cost_currency = default_currency
+        try:
+            displayed_fixed_costs = {item: convert_amount(amount, "USD", default_currency)[0] for item, amount in FIXED_COSTS.items()}
+        except CurrencyConversionError:
+            displayed_fixed_costs = FIXED_COSTS
+            fixed_cost_currency = "USD"
+            st.caption("Current-rate conversion is unavailable; showing USD values.")
         cost_columns = st.columns(2, gap="small")
-        for index, (item, amount) in enumerate(FIXED_COSTS.items()):
+        for index, (item, amount) in enumerate(displayed_fixed_costs.items()):
             with cost_columns[index % 2]:
-                st.markdown(f'<div class="fixed-card"><p>{item}</p><strong>{money(amount)}</strong></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="fixed-card"><p>{item}</p><strong>{money(amount, fixed_cost_currency)}</strong></div>', unsafe_allow_html=True)
 
     st.markdown("<h3 class='section-title'>Add an expense</h3><p class='muted'>Write it naturally, or import a file.</p>", unsafe_allow_html=True)
     quick, upload = st.columns([1.45, 1], gap="large")
@@ -167,13 +180,16 @@ def show_home(expenses: pd.DataFrame, all_expenses: pd.DataFrame, date_label: st
             if not sentence.strip():
                 st.warning("Tell BudgetBee about an expense first.")
             else:
-                parsed_expenses, source = parse_expenses(sentence, get_groq_api_key())
-                if parsed_expenses:
-                    add_expenses(parsed_expenses)
-                    st.session_state.expense_notice = f"Added {len(parsed_expenses)} expense{'s' if len(parsed_expenses) != 1 else ''} with {source}."
-                    st.rerun()
-                else:
-                    st.error("I couldn't read that expense. Try including an amount, like '$15 for lunch'.")
+                try:
+                    parsed_expenses, source = parse_expenses(sentence, get_groq_api_key(), default_currency)
+                    if parsed_expenses:
+                        add_expenses(parsed_expenses)
+                        st.session_state.expense_notice = f"Added {len(parsed_expenses)} expense{'s' if len(parsed_expenses) != 1 else ''} with {source}."
+                        st.rerun()
+                    else:
+                        st.error("I couldn't read that expense. Try including an amount, like '$15 for lunch'.")
+                except CurrencyConversionError as exc:
+                    st.error(str(exc))
     with upload:
         st.markdown("##### Bulk import")
         uploaded = st.file_uploader(
@@ -215,7 +231,7 @@ def show_home(expenses: pd.DataFrame, all_expenses: pd.DataFrame, date_label: st
             "date": st.column_config.DateColumn("Date", format="MMM D, YYYY", required=True),
             "category": st.column_config.SelectboxColumn("Category", options=CATEGORIES, required=True),
             "description": st.column_config.TextColumn("Description", required=True),
-            "amount": st.column_config.NumberColumn("Amount", min_value=0.01, format="$%.2f", required=True),
+            "amount": st.column_config.NumberColumn("Amount", min_value=0.01, format=number_format(default_currency), required=True),
         },
         key="expense_editor",
     )
@@ -232,12 +248,14 @@ def show_analytics(expenses: pd.DataFrame, date_label: str) -> None:
     if expenses.empty:
         st.info("No expenses match the sidebar filters. Try widening the date range or selecting more categories.")
         return
+    default_currency = get_default_currency()
+    currency_symbol = SUPPORTED_CURRENCIES[default_currency]["symbol"]
     total, average, transactions = st.columns(3)
-    total.metric("Total spent", money(expenses["amount"].sum()))
-    average.metric("Daily average", money(expenses.groupby("date")["amount"].sum().mean()))
+    total.metric("Total spent", money(expenses["amount"].sum(), default_currency))
+    average.metric("Daily average", money(expenses.groupby("date")["amount"].sum().mean(), default_currency))
     transactions.metric("Transactions", len(expenses))
     st.caption(f"Showing {date_label}")
-    insight, source = generate_spending_insight(expenses, get_groq_api_key())
+    insight, source = generate_spending_insight(expenses, get_groq_api_key(), default_currency)
     st.markdown("<h3 class='section-title'>Spending highlights</h3>", unsafe_allow_html=True)
     st.info(insight, icon="✨")
     st.caption(source)
@@ -248,19 +266,19 @@ def show_analytics(expenses: pd.DataFrame, date_label: str) -> None:
     with chart1:
         st.subheader("Spending by category")
         pie = px.pie(by_category, names="category", values="amount", hole=0.58, color_discrete_sequence=colors)
-        pie.update_traces(textposition="inside", textinfo="percent+label", hovertemplate="%{label}<br>$%{value:.2f}<extra></extra>")
+        pie.update_traces(textposition="inside", textinfo="percent+label", hovertemplate=f"%{{label}}<br>{currency_symbol}%{{value:.2f}}<extra></extra>")
         pie.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", font_color="#30432c", margin=dict(t=10, b=10, l=10, r=10), legend_title_text="")
         st.plotly_chart(pie, use_container_width=True)
     with chart2:
         st.subheader("Daily spending")
         line = px.line(daily, x="date", y="amount", markers=True, color_discrete_sequence=["#718d42"])
-        line.update_traces(fill="tozeroy", fillcolor="rgba(113,141,66,.12)", hovertemplate="%{x|%b %d}<br>$%{y:.2f}<extra></extra>")
-        line.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", font_color="#30432c", margin=dict(t=10, b=10, l=10, r=10), xaxis_title=None, yaxis_title=None, yaxis_tickprefix="$")
+        line.update_traces(fill="tozeroy", fillcolor="rgba(113,141,66,.12)", hovertemplate=f"%{{x|%b %d}}<br>{currency_symbol}%{{y:.2f}}<extra></extra>")
+        line.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", font_color="#30432c", margin=dict(t=10, b=10, l=10, r=10), xaxis_title=None, yaxis_title=None, yaxis_tickprefix=currency_symbol)
         st.plotly_chart(line, use_container_width=True)
     st.subheader("Biggest purchases")
     biggest = expenses.nlargest(5, "amount").sort_values("amount")
     purchases = px.bar(biggest, x="amount", y="description", orientation="h", text="amount", color="amount", color_continuous_scale=["#dfecc9", "#8caf62", "#4e733c"])
-    purchases.update_traces(texttemplate="$%{text:.2f}", textposition="outside", hovertemplate="%{y}<br>$%{x:.2f}<extra></extra>")
+    purchases.update_traces(texttemplate=f"{currency_symbol}%{{text:.2f}}", textposition="outside", hovertemplate=f"%{{y}}<br>{currency_symbol}%{{x:.2f}}<extra></extra>")
     purchases.update_layout(template="plotly_white", paper_bgcolor="rgba(0,0,0,0)", font_color="#30432c", coloraxis_showscale=False, margin=dict(t=10, b=10, l=10, r=50), xaxis_title=None, yaxis_title=None)
     st.plotly_chart(purchases, use_container_width=True)
 
@@ -283,14 +301,48 @@ def show_settings() -> None:
         st.button("Connect an account", disabled=True, help="Account connections are coming soon.")
         st.checkbox("Track recurring subscriptions", value=True, disabled=True)
     st.divider()
+    st.subheader("Default currency")
+    st.caption("Changing this converts saved expenses and your monthly budget using the latest available exchange rate.")
+    current_currency = get_default_currency()
+    with st.form("default_currency"):
+        chosen_currency = st.selectbox(
+            "Display currency",
+            options=list(SUPPORTED_CURRENCIES),
+            index=list(SUPPORTED_CURRENCIES).index(current_currency),
+            format_func=lambda code: SUPPORTED_CURRENCIES[code]["label"],
+        )
+        if st.form_submit_button("Save and convert currency"):
+            if chosen_currency == current_currency:
+                st.info("This is already your default currency.")
+            else:
+                try:
+                    all_expenses = get_expenses()
+                    rate_date = "same currency"
+                    converted = all_expenses.copy()
+                    if not converted.empty:
+                        converted_values = []
+                        for amount in converted["amount"]:
+                            converted_amount, rate_date = convert_amount(amount, current_currency, chosen_currency)
+                            converted_values.append(converted_amount)
+                        converted["amount"] = converted_values
+                    converted_budget, rate_date = convert_amount(get_monthly_budget(), current_currency, chosen_currency)
+                    save_expenses(converted)
+                    save_monthly_budget(converted_budget)
+                    save_default_currency(chosen_currency)
+                    st.session_state.expense_notice = f"Converted your data to {SUPPORTED_CURRENCIES[chosen_currency]['label']} using the latest rate ({rate_date})."
+                    st.rerun()
+                except CurrencyConversionError as exc:
+                    st.error(str(exc))
     st.subheader("Monthly budget")
     st.caption("Choose a monthly spending limit to track against on your Home page.")
     current_budget = get_monthly_budget()
+    default_currency = get_default_currency()
+    max_budget = 2_000_000 if default_currency in {"INR", "JPY"} else 20_000
     with st.form("monthly_budget"):
-        budget = st.slider("Budget limit", min_value=100, max_value=20_000, value=int(current_budget), step=100, format="$%d")
+        budget = st.slider("Budget limit", min_value=100, max_value=max_budget, value=min(max(int(current_budget), 100), max_budget), step=100, format=number_format(default_currency))
         if st.form_submit_button("Save budget"):
             save_monthly_budget(budget)
-            st.success(f"Monthly budget set to {money(budget)}.")
+            st.success(f"Monthly budget set to {money(budget, default_currency)}.")
     st.subheader("Your data")
     st.caption("Download a copy of your expenses, or reset BudgetBee to its starter state.")
     export, reset = st.columns([1, 1])
@@ -305,6 +357,8 @@ def show_settings() -> None:
 
 def main() -> None:
     apply_styles()
+    if notice := st.session_state.pop("expense_notice", None):
+        st.toast(notice, icon="✅")
     all_expenses = get_expenses()
     filtered_expenses, date_label = render_sidebar_filters(all_expenses)
     home, analytics, settings = st.tabs(["🏠  Home", "📈  Analytics", "⚙️  Settings"])
