@@ -1,5 +1,19 @@
 [
   {
+    "id": "baac44a5-30ef-4f06-81e2-9d549a6be9df",
+    "date": "2026-08-14",
+    "category": "Dining",
+    "description": "Cafe Expense",
+    "amount": 49.98
+  },
+  {
+    "id": "f27954af-3e64-49ec-aefb-86ea3acbb996",
+    "date": "2026-08-14",
+    "category": "Dining",
+    "description": "Coffee",
+    "amount": 1.57
+  },
+  {
     "id": "885ae3a0-03fa-47ad-bcb4-2458d90b8fb7",
     "date": "2026-08-12",
     "category": "Dining",
@@ -18,7 +32,7 @@
     "date": "2026-08-09",
     "category": "Groceries",
     "description": "Weekly groceries",
-    "amount": 72.3
+    "amount": 72.28
   },
   {
     "id": "85566de7-705e-499f-9b2b-95cd63982ab5",
@@ -40,12 +54,5 @@
     "category": "Dining",
     "description": "Coffee with a friend",
     "amount": 6.75
-  },
-  {
-    "id": "baac44a5-30ef-4f06-81e2-9d549a6be9df",
-    "date": "2026-08-14",
-    "category": "Dining",
-    "description": "Cafe Expense",
-    "amount": 50.0
   }
 ]
