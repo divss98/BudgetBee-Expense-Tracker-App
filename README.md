@@ -12,6 +12,7 @@ BudgetBee is a clean, local-first expense tracker built with Streamlit. It helps
 - Editable expense table for making quick corrections.
 - Dashboard-wide sidebar filters for date ranges and categories.
 - Spending metrics, budget progress, category nudges, and fixed-cost tracking.
+- Five default-currency choices with current-rate conversion for saved expenses, budgets, and AI entries.
 - Analytics with category breakdown, daily spending trends, biggest purchases, and concise AI spending highlights.
 - Local JSON storage—no database setup required.
 
@@ -85,6 +86,8 @@ GROQ_API_KEY=your_groq_api_key_here
 Get a Groq API key from [Groq Console](https://console.groq.com/keys). The `.env` file is ignored by Git, so do not commit it.
 
 Groq is optional: without a key, BudgetBee uses a basic local parser for simple entries. AI-generated multi-expense parsing and analytics highlights require the key.
+
+Currency conversion uses the latest published rate from the [Frankfurter API](https://frankfurter.dev/) and needs an internet connection when a conversion is required.
 
 ### 5. Start the app
 
