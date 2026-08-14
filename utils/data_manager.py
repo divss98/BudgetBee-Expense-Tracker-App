@@ -113,12 +113,37 @@ def clear_expenses() -> None:
 def get_monthly_budget() -> float:
     """Return the persisted monthly budget, using a welcoming default for new users."""
     try:
-        settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        settings = _get_settings()
         return float(settings.get("monthly_budget", 2000))
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+    except (TypeError, ValueError):
         return 2000.0
 
 
 def save_monthly_budget(amount: float) -> None:
+    settings = _get_settings()
+    settings["monthly_budget"] = float(amount)
+    _save_settings(settings)
+
+
+def get_default_currency() -> str:
+    currency = str(_get_settings().get("default_currency", "USD")).upper()
+    return currency if currency in {"USD", "INR", "EUR", "GBP", "JPY"} else "USD"
+
+
+def save_default_currency(currency: str) -> None:
+    settings = _get_settings()
+    settings["default_currency"] = currency.upper()
+    _save_settings(settings)
+
+
+def _get_settings() -> dict:
+    try:
+        settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        return settings if isinstance(settings, dict) else {}
+    except (OSError, json.JSONDecodeError, TypeError):
+        return {}
+
+
+def _save_settings(settings: dict) -> None:
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_PATH.write_text(json.dumps({"monthly_budget": float(amount)}, indent=2), encoding="utf-8")
+    SETTINGS_PATH.write_text(json.dumps(settings, indent=2), encoding="utf-8")

@@ -11,10 +11,11 @@ import pandas as pd
 
 from groq import Groq
 
+from utils.currency import CURRENCIES, convert_amount, format_currency
 from utils.data_manager import CATEGORIES
 
 
-def _fallback_parse(sentence: str) -> dict | None:
+def _fallback_parse(sentence: str, default_currency: str) -> dict | None:
     amount_match = re.search(r"(?:\$|₹|€|£)?\s*(\d+(?:\.\d{1,2})?)", sentence)
     if not amount_match:
         return None
@@ -33,7 +34,23 @@ def _fallback_parse(sentence: str) -> dict | None:
     description = re.sub(r"(?:\$|₹|€|£)?\s*\d+(?:\.\d{1,2})?", "", sentence)
     description = re.sub(r"\b(spent|paid|bought|on|for|today|yesterday)\b", "", description, flags=re.I)
     description = re.sub(r"\s+", " ", description).strip(" .,–-").title()
-    return {"date": str(_relative_date(lowered)), "category": category, "description": description or "Quick expense", "amount": amount}
+    return {
+        "date": str(_relative_date(lowered)),
+        "category": category,
+        "description": description or "Quick expense",
+        "amount": amount,
+        "currency": _detect_currency(sentence, default_currency),
+    }
+
+
+def _detect_currency(text: str, default_currency: str) -> str:
+    lowered = text.lower()
+    symbols = {"₹": "INR", "€": "EUR", "£": "GBP", "¥": "JPY", "$": "USD"}
+    for symbol, currency in symbols.items():
+        if symbol in text:
+            return currency
+    names = {"usd": "USD", "dollar": "USD", "inr": "INR", "rupee": "INR", "eur": "EUR", "euro": "EUR", "gbp": "GBP", "pound": "GBP", "jpy": "JPY", "yen": "JPY"}
+    return next((currency for name, currency in names.items() if name in lowered), default_currency.upper())
 
 
 def _relative_date(text: str) -> date:
@@ -51,7 +68,7 @@ def _relative_date(text: str) -> date:
     return today
 
 
-def _normalise_expense(data: dict) -> dict | None:
+def _normalise_expense(data: dict, default_currency: str) -> dict | None:
     """Validate the structured data returned by the model before writing it locally."""
     try:
         parsed_date = datetime.strptime(str(data["date"]), "%Y-%m-%d").date()
@@ -60,29 +77,35 @@ def _normalise_expense(data: dict) -> dict | None:
         amount = float(data["amount"])
         if amount <= 0 or not description:
             return None
-        return {"date": str(parsed_date), "category": category, "description": description, "amount": amount}
+        source_currency = str(data.get("currency", default_currency)).upper()
+        if source_currency not in CURRENCIES:
+            source_currency = default_currency.upper()
+        converted_amount, _ = convert_amount(amount, source_currency, default_currency)
+        return {"date": str(parsed_date), "category": category, "description": description, "amount": converted_amount}
     except (KeyError, TypeError, ValueError):
         return None
 
 
-def _fallback_parse_many(text: str) -> list[dict]:
+def _fallback_parse_many(text: str, default_currency: str) -> list[dict]:
     """Support pasted lines and semicolon-separated entries without an API key."""
     fragments = [part.strip(" •-\t") for part in re.split(r"\n+|;", text) if part.strip(" •-\t")]
-    return [parsed for fragment in fragments if (parsed := _fallback_parse(fragment))]
+    parsed_records = [parsed for fragment in fragments if (parsed := _fallback_parse(fragment, default_currency))]
+    return [normalised for record in parsed_records if (normalised := _normalise_expense(record, default_currency))]
 
 
-def parse_expenses(text: str, api_key: str | None) -> tuple[list[dict], str]:
+def parse_expenses(text: str, api_key: str | None, default_currency: str = "USD") -> tuple[list[dict], str]:
     """Extract one or more expenses from natural language using Groq."""
     if not api_key:
-        return _fallback_parse_many(text), "quick parser"
+        return _fallback_parse_many(text, default_currency), "quick parser"
     prompt = f"""You are BudgetBee's careful expense parser. Extract every distinct expense from this text:
 {text!r}
 
 Today is {date.today().isoformat()}. Return ONLY valid JSON in exactly this shape:
-{{"expenses": [{{"date": "YYYY-MM-DD", "category": "one allowed category", "description": "short title", "amount": 0.00}}]}}
+{{"expenses": [{{"date": "YYYY-MM-DD", "category": "one allowed category", "description": "short title", "amount": 0.00, "currency": "ISO code"}}]}}
 Categories must be one of: {', '.join(CATEGORIES)}. Resolve relative dates such as yesterday and last Tuesday.
 Use today's date if no date is stated. Make descriptions concise title-cased summaries. Never invent amounts,
-and return each expense separately even if they appear on the same line."""
+and return each expense separately even if they appear on the same line. The dashboard's default currency is {default_currency.upper()}.
+Set currency to the ISO code explicitly stated in the text (USD, INR, EUR, GBP, or JPY); if no currency is stated, use {default_currency.upper()}."""
     try:
         client = Groq(api_key=api_key)
         response = client.chat.completions.create(
@@ -95,32 +118,32 @@ and return each expense separately even if they appear on the same line."""
         records = data.get("expenses", [])
         if not isinstance(records, list):
             records = []
-        return [parsed for item in records if isinstance(item, dict) and (parsed := _normalise_expense(item))], "Groq AI"
+        return [parsed for item in records if isinstance(item, dict) and (parsed := _normalise_expense(item, default_currency))], "Groq AI"
     except Exception:
-        return _fallback_parse_many(text), "quick parser"
+        return _fallback_parse_many(text, default_currency), "quick parser"
 
 
-def parse_expense_sentence(sentence: str, api_key: str | None) -> tuple[dict | None, str]:
+def parse_expense_sentence(sentence: str, api_key: str | None, default_currency: str = "USD") -> tuple[dict | None, str]:
     """Backward-compatible single-expense interface."""
-    expenses, source = parse_expenses(sentence, api_key)
+    expenses, source = parse_expenses(sentence, api_key, default_currency)
     return (expenses[0] if expenses else None), source
 
 
-def generate_spending_insight(expenses: pd.DataFrame, api_key: str | None) -> tuple[str, str]:
+def generate_spending_insight(expenses: pd.DataFrame, api_key: str | None, currency: str = "USD") -> tuple[str, str]:
     """Create a short analytics summary, with a useful deterministic fallback."""
     total = float(expenses["amount"].sum())
     category_totals = expenses.groupby("category")["amount"].sum().sort_values(ascending=False)
     top_category, top_total = category_totals.index[0], float(category_totals.iloc[0])
     largest = expenses.loc[expenses["amount"].idxmax()]
     fallback = (
-        f"You spent ${total:,.2f} across {len(expenses)} transactions, led by {top_category} at ${top_total:,.2f}. "
-        f"Your largest purchase was ${float(largest['amount']):,.2f} for {largest['description']} on {largest['date']:%b %d}."
+        f"You spent {format_currency(total, currency)} across {len(expenses)} transactions, led by {top_category} at {format_currency(top_total, currency)}. "
+        f"Your largest purchase was {format_currency(float(largest['amount']), currency)} for {largest['description']} on {largest['date']:%b %d}."
     )
     if not api_key:
         return fallback, "spending highlights"
     prompt = f"""Write exactly 1-2 concise, friendly sentences about these spending facts. You MUST explicitly mention the largest transaction.
-Total: ${total:.2f}; transactions: {len(expenses)}; largest category: {top_category} (${top_total:.2f});
-largest transaction: ${float(largest['amount']):.2f} for {largest['description']} on {largest['date']:%Y-%m-%d}.
+Total: {format_currency(total, currency)}; transactions: {len(expenses)}; largest category: {top_category} ({format_currency(top_total, currency)});
+largest transaction: {format_currency(float(largest['amount']), currency)} for {largest['description']} on {largest['date']:%Y-%m-%d}.
 Do not make recommendations or add facts."""
     try:
         client = Groq(api_key=api_key)
