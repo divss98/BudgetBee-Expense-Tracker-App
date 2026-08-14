@@ -40,5 +40,12 @@
     "category": "Dining",
     "description": "Coffee with a friend",
     "amount": 6.75
+  },
+  {
+    "id": "baac44a5-30ef-4f06-81e2-9d549a6be9df",
+    "date": "2026-08-14",
+    "category": "Dining",
+    "description": "Cafe Expense",
+    "amount": 50.0
   }
 ]
