@@ -136,6 +136,23 @@ def save_default_currency(currency: str) -> None:
     _save_settings(settings)
 
 
+def get_fixed_costs() -> dict:
+    """Return persisted fixed costs, falling back to the built-in defaults."""
+    settings = _get_settings()
+    fixed = settings.get("fixed_costs", FIXED_COSTS)
+    try:
+        return {str(k): float(v) for k, v in fixed.items()}
+    except Exception:
+        return FIXED_COSTS.copy()
+
+
+def save_fixed_costs(costs: dict) -> None:
+    """Persist a mapping of fixed cost names to numeric amounts."""
+    settings = _get_settings()
+    settings["fixed_costs"] = {str(k): float(v) for k, v in (costs or {}).items()}
+    _save_settings(settings)
+
+
 def _get_settings() -> dict:
     try:
         settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))

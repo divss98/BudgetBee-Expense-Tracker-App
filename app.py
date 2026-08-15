@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 
 from utils.data_manager import (
     CATEGORIES,
-    FIXED_COSTS,
+    get_fixed_costs,
+    save_fixed_costs,
     add_expenses,
     clear_expenses,
     data_to_csv,
@@ -26,6 +27,7 @@ from utils.data_manager import (
 )
 from utils.currency import CURRENCIES as SUPPORTED_CURRENCIES
 from utils.currency import CurrencyConversionError, convert_amount, format_currency, number_format
+from utils.currency import numeric_format
 from utils.expense_ai import generate_spending_insight, parse_expenses
 
 
@@ -159,9 +161,9 @@ def show_home(expenses: pd.DataFrame, all_expenses: pd.DataFrame, date_label: st
         st.caption("Monthly essentials")
         fixed_cost_currency = default_currency
         try:
-            displayed_fixed_costs = {item: convert_amount(amount, "USD", default_currency)[0] for item, amount in FIXED_COSTS.items()}
+            displayed_fixed_costs = {item: convert_amount(amount, "USD", default_currency)[0] for item, amount in get_fixed_costs().items()}
         except CurrencyConversionError:
-            displayed_fixed_costs = FIXED_COSTS
+            displayed_fixed_costs = get_fixed_costs()
             fixed_cost_currency = "USD"
             st.caption("Current-rate conversion is unavailable; showing USD values.")
         cost_columns = st.columns(2, gap="small")
@@ -343,6 +345,20 @@ def show_settings() -> None:
         if st.form_submit_button("Save budget"):
             save_monthly_budget(budget)
             st.success(f"Monthly budget set to {money(budget, default_currency)}.")
+    st.subheader("Fixed expenses")
+    st.caption("Monthly fixed-cost items shown on the Home page.")
+    fixed_current = get_fixed_costs()
+    cols = st.columns(2, gap="small")
+    with st.form("fixed_costs"):
+        new_fixed: dict = {}
+        for index, (label, amount) in enumerate(fixed_current.items()):
+            with cols[index % 2]:
+                new_val = st.number_input(label, min_value=0.0, value=float(amount), format=numeric_format(default_currency), step=1.0)
+                new_fixed[label] = new_val
+        if st.form_submit_button("Save fixed expenses"):
+            save_fixed_costs(new_fixed)
+            st.success("Fixed expenses saved.")
+            st.rerun()
     st.subheader("Your data")
     st.caption("Download a copy of your expenses, or reset BudgetBee to its starter state.")
     export, reset = st.columns([1, 1])

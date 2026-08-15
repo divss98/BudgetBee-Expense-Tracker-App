@@ -59,3 +59,12 @@ def format_currency(amount: float, currency: str) -> str:
 def number_format(currency: str) -> str:
     metadata = CURRENCIES.get(currency, CURRENCIES["USD"])
     return f"{metadata['symbol']}%.{metadata['decimals']}f"
+
+
+def numeric_format(currency: str) -> str:
+    """Return a printf-style numeric format string without currency symbol.
+
+    Example: for USD returns '%.2f', for JPY returns '%.0f'.
+    """
+    metadata = CURRENCIES.get(currency, CURRENCIES["USD"])
+    return f"%.{metadata['decimals']}f"

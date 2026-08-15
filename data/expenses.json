@@ -1,24 +1,59 @@
 [
   {
-    "id": "baac44a5-30ef-4f06-81e2-9d549a6be9df",
-    "date": "2026-08-14",
+    "id": "c63330bb-c88f-4d53-a033-fbc1c57212f6",
+    "date": "2026-08-15",
     "category": "Dining",
-    "description": "Cafe Expense",
-    "amount": 49.98
+    "description": "Taco Bell",
+    "amount": 15.0
+  },
+  {
+    "id": "be7da59a-03da-473a-a683-3e685690e70a",
+    "date": "2026-08-15",
+    "category": "Shopping",
+    "description": "Delhi Shopping",
+    "amount": 5.24
+  },
+  {
+    "id": "f811e77c-4509-4c3b-90c0-7c2bdc103676",
+    "date": "2026-08-15",
+    "category": "Transport",
+    "description": "Bus Ticket To Bangalore",
+    "amount": 11.0
   },
   {
     "id": "f27954af-3e64-49ec-aefb-86ea3acbb996",
     "date": "2026-08-14",
     "category": "Dining",
     "description": "Coffee",
-    "amount": 1.57
+    "amount": 5.0
+  },
+  {
+    "id": "a650f889-2120-404c-9073-b22ebd7436ff",
+    "date": "2026-08-14",
+    "category": "Transport",
+    "description": "Train Ticket",
+    "amount": 5.24
+  },
+  {
+    "id": "324824b3-0c8a-48b8-88cf-195c3900fe4d",
+    "date": "2026-08-14",
+    "category": "Dining",
+    "description": "Mcdonalds Dinner",
+    "amount": 20.0
+  },
+  {
+    "id": "9f52c5e0-3d29-4751-a23f-7b2ba2fe986f",
+    "date": "2026-08-14",
+    "category": "Groceries",
+    "description": "Pasta At North Italia",
+    "amount": 15.0
   },
   {
     "id": "885ae3a0-03fa-47ad-bcb4-2458d90b8fb7",
     "date": "2026-08-12",
     "category": "Dining",
     "description": "Lunch at Green Bowl",
-    "amount": 14.5
+    "amount": 18.0
   },
   {
     "id": "c2d1b844-beb8-4391-9ba2-72bd001d0e38",
@@ -32,7 +67,7 @@
     "date": "2026-08-09",
     "category": "Groceries",
     "description": "Weekly groceries",
-    "amount": 72.28
+    "amount": 72.26
   },
   {
     "id": "85566de7-705e-499f-9b2b-95cd63982ab5",
@@ -49,10 +84,73 @@
     "amount": 45.0
   },
   {
-    "id": "b7f77acd-5a17-4412-89a3-e9bf3b195b97",
+    "id": "e66ae211-2d0b-4573-aa1b-24b67603b491",
+    "date": "2026-08-03",
+    "category": "Dining",
+    "description": "Burger King",
+    "amount": 10.0
+  },
+  {
+    "id": "28bd772a-c012-4e92-91ba-e0567fef91f7",
+    "date": "2026-08-03",
+    "category": "Dining",
+    "description": "Burger King",
+    "amount": 10.0
+  },
+  {
+    "id": "a559d43a-fbd7-4529-bccc-8968db77a9dc",
+    "date": "2026-08-02",
+    "category": "Shopping",
+    "description": "Macys",
+    "amount": 84.99
+  },
+  {
+    "id": "605b804e-00c3-4d59-9e19-66e528a343e1",
+    "date": "2026-08-02",
+    "category": "Entertainment",
+    "description": "Odessey Movie",
+    "amount": 15.0
+  },
+  {
+    "id": "bffb6473-bfc3-4ef0-bc2a-f07a14ed17a8",
+    "date": "2026-08-02",
+    "category": "Shopping",
+    "description": "Macys",
+    "amount": 84.99
+  },
+  {
+    "id": "7908c058-74b5-4506-b906-57c96abac44c",
+    "date": "2026-08-02",
+    "category": "Entertainment",
+    "description": "Odessey Movie",
+    "amount": 15.0
+  },
+  {
+    "id": "494c3a28-9e18-4946-80f7-10bda4a3f1b4",
     "date": "2026-08-01",
     "category": "Dining",
-    "description": "Coffee with a friend",
-    "amount": 6.75
+    "description": "Waffle House",
+    "amount": 25.0
+  },
+  {
+    "id": "ab6ce7a0-be52-41da-b491-b410140279d5",
+    "date": "2026-08-01",
+    "category": "Transport",
+    "description": "Gas At Chevron",
+    "amount": 33.0
+  },
+  {
+    "id": "4f60d73e-3383-44a6-9be0-4ab8a087bd85",
+    "date": "2026-08-01",
+    "category": "Dining",
+    "description": "Waffle House",
+    "amount": 25.0
+  },
+  {
+    "id": "710213a0-4a7b-4e18-b325-8b43757cf8e2",
+    "date": "2026-08-01",
+    "category": "Transport",
+    "description": "Gas At Chevron",
+    "amount": 33.0
   }
 ]
