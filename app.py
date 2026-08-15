@@ -292,8 +292,8 @@ def show_settings() -> None:
     with profile:
         st.subheader("Your profile")
         with st.form("profile"):
-            name = st.text_input("Name", value=st.session_state.get("profile_name", "Alex Morgan"))
-            email = st.text_input("Email", value=st.session_state.get("profile_email", "alex@example.com"))
+            name = st.text_input("Name", value=st.session_state.get("profile_name", "Please enter your name"))
+            email = st.text_input("Email", value=st.session_state.get("profile_email", "name@example.com"))
             if st.form_submit_button("Save profile"):
                 st.session_state.profile_name, st.session_state.profile_email = name, email
                 st.success("Profile saved for this session.")
