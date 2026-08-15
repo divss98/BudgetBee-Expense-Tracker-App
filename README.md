@@ -31,6 +31,7 @@ BudgetBee-Expense-Tracker-App/
 ├── utils/
 │   ├── data_manager.py    # Local storage, CSV, and budget helpers
 │   └── expense_ai.py      # Groq-powered expense and insight logic
+│   └── currency.py        # Curreny exchange converting logic using Frankfurter API
 ├── data/                  # Local expense and settings data (ignored by Git)
 ├── .env.example           # Environment variable template
 └── requirements.txt       # Python dependencies
