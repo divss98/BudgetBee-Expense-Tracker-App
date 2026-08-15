@@ -159,6 +159,7 @@ def show_home(expenses: pd.DataFrame, all_expenses: pd.DataFrame, date_label: st
     with costs:
         st.markdown("#### Fixed costs")
         st.caption("Monthly essentials")
+        st.caption("Please update fixed costs in Settings if they change.")
         fixed_cost_currency = default_currency
         try:
             displayed_fixed_costs = {item: convert_amount(amount, "USD", default_currency)[0] for item, amount in get_fixed_costs().items()}

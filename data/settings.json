@@ -2,9 +2,9 @@
   "monthly_budget": 2498.96,
   "default_currency": "USD",
   "fixed_costs": {
-    "Rent": 1000.0,
-    "Wi-Fi": 45.0,
-    "Mobile bill": 35.0,
-    "Subscriptions": 29.99
+    "Rent": 0.0,
+    "Wi-Fi": 0.0,
+    "Mobile bill": 0.0,
+    "Subscriptions": 0.0
   }
 }
